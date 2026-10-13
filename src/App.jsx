@@ -12,6 +12,9 @@ function App() {
   const [message, setMessage] = useState("");
   const [complaints, setComplaints] = useState([]);
 
+  const API_URL =
+    "https://smartcomplaintbackend.onrender.com/api/complaints";
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -21,40 +24,59 @@ function App() {
     setMessage("Submitting...");
 
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/complaints",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        }
-      );
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to submit complaint");
+        const errorText = await response.text();
+        throw new Error(
+          errorText || `Request failed with status ${response.status}`
+        );
       }
 
       const data = await response.json();
-      setMessage(`Complaint submitted successfully! ID: ${data.id}`);
-      setForm({ name: "", email: "", subject: "", description: "" });
-      loadComplaints();
-    } catch (error) {
+
       setMessage(
-        "Unable to submit. Check whether Spring Boot is running and CORS is configured."
+        `Complaint submitted successfully! ID: ${data.id}`
+      );
+
+      setForm({
+        name: "",
+        email: "",
+        subject: "",
+        description: "",
+      });
+
+      await loadComplaints();
+    } catch (error) {
+      console.error("Error submitting complaint:", error);
+
+      setMessage(
+        `Unable to submit complaint. ${error.message || "Please check the backend connection."}`
       );
     }
   };
 
   const loadComplaints = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/complaints"
-      );
-      if (!response.ok) throw new Error("Could not load complaints");
+      const response = await fetch(API_URL);
+
+      if (!response.ok) {
+        throw new Error(
+          `Could not load complaints. Status: ${response.status}`
+        );
+      }
+
       const data = await response.json();
       setComplaints(data);
     } catch (error) {
       console.error("Error loading complaints:", error);
+      setMessage("Unable to load complaints. Please try again.");
     }
   };
 
@@ -70,36 +92,42 @@ function App() {
           <h2>Submit a Complaint</h2>
 
           <form onSubmit={submitComplaint}>
-            <label>Name</label>
+            <label htmlFor="name">Name</label>
             <input
+              id="name"
               name="name"
+              type="text"
               value={form.name}
               onChange={handleChange}
               placeholder="Enter your name"
               required
             />
 
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
-              type="email"
+              id="email"
               name="email"
+              type="email"
               value={form.email}
               onChange={handleChange}
               placeholder="Enter your email"
               required
             />
 
-            <label>Subject</label>
+            <label htmlFor="subject">Subject</label>
             <input
+              id="subject"
               name="subject"
+              type="text"
               value={form.subject}
               onChange={handleChange}
               placeholder="Enter complaint subject"
               required
             />
 
-            <label>Description</label>
+            <label htmlFor="description">Description</label>
             <textarea
+              id="description"
               name="description"
               value={form.description}
               onChange={handleChange}
@@ -116,18 +144,32 @@ function App() {
 
         <section className="card">
           <h2>All Complaints</h2>
+
           <button type="button" onClick={loadComplaints}>
             View Complaints
           </button>
 
-          {complaints.map((complaint) => (
-            <div className="complaint" key={complaint.id}>
-              <h3>Complaint #{complaint.id}</h3>
-              <p><strong>Name:</strong> {complaint.name}</p>
-              <p><strong>Subject:</strong> {complaint.subject}</p>
-              <p><strong>Status:</strong> {complaint.status}</p>
-            </div>
-          ))}
+          {complaints.length === 0 ? (
+            <p>No complaints to display. Click "View Complaints" to refresh.</p>
+          ) : (
+            complaints.map((complaint) => (
+              <div className="complaint" key={complaint.id}>
+                <h3>Complaint #{complaint.id}</h3>
+
+                <p>
+                  <strong>Name:</strong> {complaint.name}
+                </p>
+
+                <p>
+                  <strong>Subject:</strong> {complaint.subject}
+                </p>
+
+                <p>
+                  <strong>Status:</strong> {complaint.status}
+                </p>
+              </div>
+            ))
+          )}
         </section>
       </main>
     </div>
